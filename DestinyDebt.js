@@ -224,10 +224,21 @@ function startsWithNumber(str) {
   return /^[0-9]/.test(str);
 }
 
-async function rechargeDestiny() {
+async function rechargeDestiny(day = undefined) {
   // Get content from Checklists page
   // If it is a weekday today, load the weekday checklist and so on
-  const checklist = await getChecklist(new Date().getDay());
+  const days = [
+    "Sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+  ];
+  const checklist = await getChecklist(
+    day ? days.indexOf(day) : new Date().getDay()
+  );
   // Go on Today
   // Check if Today has any remaining todos which have not been checked
   const unchecked = await getUncheckedTodos();
@@ -236,8 +247,8 @@ async function rechargeDestiny() {
   await updateDestinyDebt(leftovers);
 }
 
-rechargeDestiny();
-
+const args = process.argv.slice(2);
+rechargeDestiny((day = args.length > 0 ? args[0] : undefined));
 // Keep unchecked todos
 // Go to the respective place in Destiny Debt and increment text
 
