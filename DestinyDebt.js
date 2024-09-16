@@ -1,7 +1,76 @@
 const { Client } = require("@notionhq/client");
 require("dotenv").config();
-
+const cliProgress = require("cli-progress");
+const colors = require("ansi-colors");
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
+
+const subjects = {
+  "Destiny is All": { id: undefined, items: [] },
+  "A Vain Death": { id: undefined, items: [] },
+  "Premonition of War": { id: undefined, items: [] },
+  "Mind and Body": { id: undefined, items: [] },
+  "Inner Peace": { id: undefined, items: [] },
+  "Mastery of Games": { id: undefined, items: [] },
+  "Expressions of Self": { id: undefined, items: [] },
+  "Ways of the World": { id: undefined, items: [] },
+  "Izzet Scholarship": { id: undefined, items: [] },
+  "Unite Them": { id: undefined, items: [] },
+  Elsecaller: { id: undefined, items: [] },
+};
+
+async function getClassifications() {
+  const response = await fetchBlock(process.env.CLASSIFICATIONS_PAGE_ID);
+  let activeSubject = "Destiny is All";
+  const fetchedSubjects = response.results
+    .filter((r) => r.paragraph && r.paragraph.rich_text.length > 0)
+    .map((r) => r.paragraph.rich_text[0].text.content);
+  fetchedSubjects.forEach((f) => {
+    if (Object.keys(subjects).includes(f)) {
+      activeSubject = f;
+    } else {
+      subjects[activeSubject].items.push(f);
+    }
+  });
+}
+
+async function getClassificationIDs(debt) {
+  await getClassifications();
+  const blocks = await fetchBlock(process.env.DESTINY_DEBT_PAGE_ID);
+  let activeSubject = "Destiny is All";
+  const fetchedSubjects = blocks.results
+    .filter((r) => r.paragraph && r.paragraph.rich_text.length > 0)
+    .map((r) => {
+      return { text: r.paragraph.rich_text[0].text.content, id: r.id };
+    });
+  fetchedSubjects.forEach((f) => {
+    if (Object.keys(subjects).includes(f.text)) {
+      activeSubject = f.text;
+      subjects[activeSubject].id = f.id;
+    }
+    // Check if for any debt item there is a match between Object.keys(subjects).map((k) => subjects[k].items).includes(debt.split(" ")[2])
+    // If yes, increment the number of the existing debt
+    // If not, append it underneath
+  });
+  console.log(subjects);
+}
+
+async function matchExistingDebt(debt) {
+  const blocks = await fetchBlock(process.env.DESTINY_DEBT_PAGE_ID);
+  let activeSubject = "Destiny is All";
+  const fetchedSubjects = blocks.results
+    .filter((r) => r.paragraph && r.paragraph.rich_text.length > 0)
+    .map((r) => {
+      return { text: r.paragraph.rich_text[0].text.content, id: r.id };
+    });
+  fetchedSubjects.forEach((f) => {
+    if (Object.keys(subjects).includes(f.text)) {
+      activeSubject = f.text;
+    } else {
+      subjects[activeSubject].id = f.id;
+    }
+  });
+  console.log(subjects);
+}
 
 async function fetchBlock(blockId) {
   return await notion.blocks.children.list({
@@ -10,24 +79,24 @@ async function fetchBlock(blockId) {
   });
 }
 
-const cliProgress = require("cli-progress");
-const colors = require("ansi-colors");
+async function getTodosFromBlocks(blocks) {
+  const filteredBlocks = blocks.results
+    .filter(
+      (block) =>
+        block.type === "paragraph" && block.paragraph.rich_text.length > 0
+    )
+    .map((b) => {
+      return { text: b.paragraph.rich_text[0].text.content, id: b.id };
+    });
+  const regex =
+    /(\d+)\s*(hour\(s\)|hours?|minute\(s\)|minutes?)\s+([\w\s/-]+)/i;
 
-// Create a new progress bar instance
-/*
-// Get all of the destiny debt
-(async () => {
-  const response = await fetchBlock(process.env.DESTINY_DEBT_PAGE_ID);
-  response.results.forEach(async (obj) => {
-    if (obj.type === "toggle") {
-      const toggleList = await fetchBlock(obj.id);
-      toggleList.results.forEach(async (listItem) => {
-        console.log(listItem.paragraph.rich_text[0].plain_text);
-      });
-    }
-  });
-})();
-*/
+  const matches = filteredBlocks
+    .filter((b) => b.text.match(regex))
+    .filter(Boolean);
+
+  return matches;
+}
 
 function parseChecklist(checklist) {
   return checklist.map((r) => {
@@ -154,12 +223,7 @@ async function updateDestinyDebt(leftovers) {
   );
   progressBar.start(leftovers.length, 0);
   const blocks = await fetchBlock(process.env.DESTINY_DEBT_PAGE_ID);
-  const content = await fetchBlock(blocks.results[0].id);
-  const todos = content.results
-    .map((b) => {
-      return { text: b.paragraph?.rich_text[0]?.plain_text, id: b.id };
-    })
-    .filter((t) => t.text);
+  const todos = await getTodosFromBlocks(blocks);
 
   for (let i = 0; i < todos.length; i++) {
     progressBar.increment();
@@ -211,11 +275,19 @@ async function updateDestinyDebt(leftovers) {
         },
       };
     });
+  let counter = 0;
+  /*
   const response = await notion.blocks.children.append({
     block_id: blocks.results[0].id,
     children: toAppend,
   });
-  progressBar.update(leftovers.length);
+  */
+  await getClassificationIDs();
+  // For each toAppend
+  //  If there is a match with an item, increment the number
+  //  Otherwise, find the subject the item belongs to and add it beneath it
+  //  Need to increase counter to update progressbar
+  progressBar.update(toAppend.length);
   progressBar.stop();
   console.log(`${colors.green("[💸 Destiny Debt] ")} page updated!`);
 }
@@ -227,6 +299,7 @@ function startsWithNumber(str) {
 async function rechargeDestiny(day = undefined) {
   // Get content from Checklists page
   // If it is a weekday today, load the weekday checklist and so on
+
   const days = [
     "Sunday",
     "Monday",
@@ -248,8 +321,6 @@ async function rechargeDestiny(day = undefined) {
 }
 
 const args = process.argv.slice(2);
-rechargeDestiny((day = args.length > 0 ? args[0] : undefined));
-// Keep unchecked todos
-// Go to the respective place in Destiny Debt and increment text
+//rechargeDestiny((day = args.length > 0 ? args[0] : undefined));
 
-// Remove all todos
+getClassificationIDs();
