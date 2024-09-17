@@ -18,6 +18,23 @@ const subjects = {
   Elsecaller: { id: undefined, items: [] },
 };
 
+async function updatePageWithRetry(pageId, updateData, retries = 3) {
+  try {
+    return await notion.blocks.update({
+      block_id: pageId,
+      paragraph: updateData,
+    });
+  } catch (error) {
+    if (error.code === "conflict_error" && retries > 0) {
+      console.warn("Conflict detected, retrying...");
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
+      return updatePageWithRetry(pageId, updateData, retries - 1);
+    } else {
+      throw error; // If retries exhausted or other error, rethrow
+    }
+  }
+}
+
 async function getClassifications() {
   const response = await fetchBlock(process.env.CLASSIFICATIONS_PAGE_ID);
   let activeSubject = "Destiny is All";
@@ -34,6 +51,9 @@ async function getClassifications() {
 }
 
 async function getClassificationIDs(debt) {
+  if (debt.length === 0) {
+    return;
+  }
   await getClassifications();
   const blocks = await fetchBlock(process.env.DESTINY_DEBT_PAGE_ID);
   let activeSubject = "Destiny is All";
@@ -42,34 +62,84 @@ async function getClassificationIDs(debt) {
     .map((r) => {
       return { text: r.paragraph.rich_text[0].text.content, id: r.id };
     });
+
   fetchedSubjects.forEach((f) => {
     if (Object.keys(subjects).includes(f.text)) {
       activeSubject = f.text;
       subjects[activeSubject].id = f.id;
     }
-    // Check if for any debt item there is a match between Object.keys(subjects).map((k) => subjects[k].items).includes(debt.split(" ")[2])
-    // If yes, increment the number of the existing debt
+  });
+  // Check if for any debt item there is a match between
+  activeSubject = undefined;
+  console.log(subjects);
+  fetchedSubjects.forEach(async (f) => {
+    for (let i = 0; i < debt.length; i++) {
+      if (debt[i].checked) {
+        continue;
+      }
+      if (
+        f.text.split(" ")[2] === debt[i].text.split(" ")[2] &&
+        !debt[i].checked
+      ) {
+        debt[i].checked = true;
+        const result = parseInt(f.text.split(" ")[0]);
+        const toAdd = parseInt(debt[i].text.split(" ")[0]);
+        const finalText = `${(result + toAdd).toString()} ${
+          debt[i].text.split(" ")[1]
+        } ${debt[i].text.split(" ")[2]}`;
+        console.log(`Adding ${debt[i].text} to previous`);
+        updatePageWithRetry(f.id, {
+          rich_text: [
+            {
+              text: {
+                content: finalText,
+              },
+            },
+          ],
+        });
+      }
+    }
+
     // If not, append it underneath
   });
-  console.log(subjects);
-}
 
-async function matchExistingDebt(debt) {
-  const blocks = await fetchBlock(process.env.DESTINY_DEBT_PAGE_ID);
-  let activeSubject = "Destiny is All";
-  const fetchedSubjects = blocks.results
-    .filter((r) => r.paragraph && r.paragraph.rich_text.length > 0)
-    .map((r) => {
-      return { text: r.paragraph.rich_text[0].text.content, id: r.id };
-    });
-  fetchedSubjects.forEach((f) => {
-    if (Object.keys(subjects).includes(f.text)) {
-      activeSubject = f.text;
-    } else {
-      subjects[activeSubject].id = f.id;
+  fetchedSubjects.forEach(async (f) => {
+    for (let i = 0; i < debt.length; i++) {
+      if (debt[i].checked) {
+        continue;
+      }
+      if (Object.keys(subjects).includes(f.text)) {
+        if (
+          activeSubject &&
+          subjects[activeSubject].items.includes(debt[i].text.split(" ")[2]) &&
+          !debt[i].checked
+        ) {
+          console.log(`Appended ${debt[i].text} to ${activeSubject}`);
+          debt[i].checked = true;
+          const todo = {
+            paragraph: {
+              rich_text: [
+                {
+                  text: {
+                    content: debt[i].text,
+                  },
+                },
+              ],
+            },
+          };
+          notion.blocks.children.append({
+            block_id: subjects[activeSubject].id,
+            children: [todo],
+          });
+        }
+        activeSubject = f.text;
+      }
     }
+
+    // If not, append it underneath
   });
-  console.log(subjects);
+
+  console.log(debt.filter((d) => !d.checked).map((d) => d.text));
 }
 
 async function fetchBlock(blockId) {
@@ -177,7 +247,7 @@ async function getUncheckedTodos() {
     (c) => !c.checked
   );
 
-  await removeTodos(filteredBlocks.map((b) => b.id));
+  // await removeTodos(filteredBlocks.map((b) => b.id));
   console.log(`Removed ${parsedChecklist.length} todos`);
   return parsedChecklist;
 }
@@ -316,11 +386,10 @@ async function rechargeDestiny(day = undefined) {
   // Check if Today has any remaining todos which have not been checked
   const unchecked = await getUncheckedTodos();
   const leftovers = unchecked.filter((u) => startsWithNumber(u.text));
-  await refillTodos(checklist);
-  await updateDestinyDebt(leftovers);
+  // await refillTodos(checklist);
+  // await updateDestinyDebt(leftovers);
+  await getClassificationIDs(leftovers);
 }
 
 const args = process.argv.slice(2);
-//rechargeDestiny((day = args.length > 0 ? args[0] : undefined));
-
-getClassificationIDs();
+rechargeDestiny((day = args.length > 0 ? args[0] : undefined));
