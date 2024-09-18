@@ -5,17 +5,17 @@ const colors = require("ansi-colors");
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
 const subjects = {
-  "Destiny is All": { id: undefined, items: [] },
-  "A Vain Death": { id: undefined, items: [] },
-  "Premonition of War": { id: undefined, items: [] },
-  "Mind and Body": { id: undefined, items: [] },
-  "Inner Peace": { id: undefined, items: [] },
-  "Mastery of Games": { id: undefined, items: [] },
-  "Expressions of Self": { id: undefined, items: [] },
-  "Ways of the World": { id: undefined, items: [] },
-  "Izzet Scholarship": { id: undefined, items: [] },
-  "Unite Them": { id: undefined, items: [] },
-  Elsecaller: { id: undefined, items: [] },
+  "Destiny is All": { id: undefined, items: [], color: "\x1b[41m" },
+  "A Vain Death": { id: undefined, items: [], color: "\x1b[38;5;179m" },
+  "Premonition of War": { id: undefined, items: [], color: "\x1b[38;5;173m" },
+  "Mind and Body": { id: undefined, items: [], color: "\x1b[43m" },
+  "Inner Peace": { id: undefined, items: [], color: "\x1b[42m" },
+  "Mastery of Games": { id: undefined, items: [], color: "\x1b[44m" },
+  "Expressions of Self": { id: undefined, items: [], color: "\x1b[46m" },
+  "Ways of the World": { id: undefined, items: [], color: "\x1b[38;5;43m" },
+  "Izzet Scholarship": { id: undefined, items: [], color: "\x1b[45m" },
+  "Unite Them": { id: undefined, items: [], color: "\x1b[43m" },
+  Elsecaller: { id: undefined, items: [], color: "\x1b[38;5;139m" },
 };
 
 async function updatePageWithRetry(pageId, updateData, retries = 3) {
@@ -54,67 +54,85 @@ async function getClassificationIDs(debt) {
   if (debt.length === 0) {
     return;
   }
+
   await getClassifications();
   const blocks = await fetchBlock(process.env.DESTINY_DEBT_PAGE_ID);
-  let activeSubject = "Destiny is All";
   const fetchedSubjects = blocks.results
     .filter((r) => r.paragraph && r.paragraph.rich_text.length > 0)
     .map((r) => {
-      return { text: r.paragraph.rich_text[0].text.content, id: r.id };
+      return {
+        text: r.paragraph.rich_text[0].text.content,
+        id: r.id,
+        has_children: r.has_children,
+      };
     });
 
   fetchedSubjects.forEach((f) => {
     if (Object.keys(subjects).includes(f.text)) {
+      subjects[f.text].id = f.id;
+    }
+  });
+
+  let activeSubject = undefined;
+
+  // Use `for...of` to handle the async nature properly
+  for (const f of fetchedSubjects) {
+    if (f.has_children) {
+      console.log(
+        `Checking for updates on ${subjects[f.text].color} ${
+          f.text
+        } \x1b[0m...\n`
+      );
       activeSubject = f.text;
-      subjects[activeSubject].id = f.id;
-    }
-  });
-  // Check if for any debt item there is a match between
-  activeSubject = undefined;
-  console.log(subjects);
-  fetchedSubjects.forEach(async (f) => {
-    for (let i = 0; i < debt.length; i++) {
-      if (debt[i].checked) {
-        continue;
-      }
-      if (
-        f.text.split(" ")[2] === debt[i].text.split(" ")[2] &&
-        !debt[i].checked
-      ) {
-        debt[i].checked = true;
-        const result = parseInt(f.text.split(" ")[0]);
-        const toAdd = parseInt(debt[i].text.split(" ")[0]);
-        const finalText = `${(result + toAdd).toString()} ${
-          debt[i].text.split(" ")[1]
-        } ${debt[i].text.split(" ")[2]}`;
-        console.log(`Adding ${debt[i].text} to previous`);
-        updatePageWithRetry(f.id, {
-          rich_text: [
-            {
-              text: {
-                content: finalText,
-              },
-            },
-          ],
+      const children = await fetchBlock(f.id);
+      const fetchedChildren = children.results
+        .filter((r) => r.paragraph && r.paragraph.rich_text.length > 0)
+        .map((r) => {
+          return {
+            text: r.paragraph.rich_text[0].text.content,
+            id: r.id,
+            has_children: r.has_children,
+          };
         });
-      }
-    }
 
-    // If not, append it underneath
-  });
+      await Promise.all(
+        fetchedChildren.map(async (c) => {
+          for (let i = 0; i < debt.length; i++) {
+            if (debt[i].checked) {
+              continue;
+            }
+            if (
+              c.text.split(" ")[2] === debt[i].text.split(" ")[2] &&
+              !debt[i].checked
+            ) {
+              console.log(`Incrementing ${c.text.split(" ")[2]}.`);
+              debt[i].checked = true;
+              const result = parseInt(c.text.split(" ")[0]);
+              const toAdd = parseInt(debt[i].text.split(" ")[0]);
+              const finalText = `${(result + toAdd).toString()} ${
+                debt[i].text.split(" ")[1]
+              } ${debt[i].text.split(" ")[2]}`;
+              await updatePageWithRetry(c.id, {
+                rich_text: [
+                  {
+                    text: {
+                      content: finalText,
+                    },
+                  },
+                ],
+              });
+            }
+          }
+        })
+      );
 
-  fetchedSubjects.forEach(async (f) => {
-    for (let i = 0; i < debt.length; i++) {
-      if (debt[i].checked) {
-        continue;
-      }
-      if (Object.keys(subjects).includes(f.text)) {
+      // Handle debt items to add new entries
+      for (let i = 0; i < debt.length; i++) {
         if (
           activeSubject &&
           subjects[activeSubject].items.includes(debt[i].text.split(" ")[2]) &&
           !debt[i].checked
         ) {
-          console.log(`Appended ${debt[i].text} to ${activeSubject}`);
           debt[i].checked = true;
           const todo = {
             paragraph: {
@@ -127,19 +145,15 @@ async function getClassificationIDs(debt) {
               ],
             },
           };
-          notion.blocks.children.append({
+          console.log(`Appending ${debt[i].text.split(" ")[2]}.`);
+          await notion.blocks.children.append({
             block_id: subjects[activeSubject].id,
             children: [todo],
           });
         }
-        activeSubject = f.text;
       }
     }
-
-    // If not, append it underneath
-  });
-
-  console.log(debt.filter((d) => !d.checked).map((d) => d.text));
+  }
 }
 
 async function fetchBlock(blockId) {
