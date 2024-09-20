@@ -1,79 +1,40 @@
-const { Client } = require("@notionhq/client");
 require("dotenv").config();
 const cliProgress = require("cli-progress");
 const colors = require("ansi-colors");
-const notion = new Client({
-  auth: process.env.NOTION_API_KEY,
-  logLevel: "error",
-});
 
-const subjects = {
-  "Destiny is All": { id: undefined, items: [], color: "\x1b[31m" },
-  "A Vain Death": { id: undefined, items: [], color: "\x1b[38;5;179m" },
-  "Premonition of War": { id: undefined, items: [], color: "\x1b[38;5;173m" },
-  "Mind and Body": { id: undefined, items: [], color: "\x1b[33m" },
-  "Inner Peace": { id: undefined, items: [], color: "\x1b[32m" },
-  "Mastery of Games": { id: undefined, items: [], color: "\x1b[34m" },
-  "Expressions of Self": { id: undefined, items: [], color: "\x1b[36m" },
-  "Ways of the World": { id: undefined, items: [], color: "\x1b[38;5;43m" },
-  "Izzet Scholarship": { id: undefined, items: [], color: "\x1b[35m" },
-  "Unite Them": { id: undefined, items: [], color: "\x1b[33m" },
-  Elsecaller: { id: undefined, items: [], color: "\x1b[38;5;139m" },
-};
+const { SUBJECTS, DAYS } = require("./constants.js");
 
-const days = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+const {
+  fetchBlock,
+  updateBlockWithRetry,
+  deleteBlockWithRetries,
+  appendBlock,
+} = require("./notion.js");
+
+const { toDoObject, parseChecklist, textObject } = require("./helpers.js");
 
 //___MAIN____
 
 const args = process.argv.slice(2);
 rechargeDestiny((day = args.length > 0 ? args[0] : undefined));
 
-// Function to delete a block with retries
-async function updatePageWithRetry(pageId, updateData, retries = 3) {
-  try {
-    return await notion.blocks.update({
-      block_id: pageId,
-      paragraph: updateData,
-    });
-  } catch (error) {
-    if (error.code === "conflict_error" && retries > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
-      return updatePageWithRetry(pageId, updateData, retries - 1);
-    } else {
-      throw error; // If retries exhausted or other error, rethrow
-    }
-  }
+async function rechargeDestiny(day = new Date().getDay()) {
+  const checklist = await getChecklist(day ?? DAYS.indexOf(day));
+  const leftovers = await removeUncheckedTodos();
+  await refillTodos(checklist);
+  console.log(`\n ${colors.yellow(`[🎁 Today]`)} page updated! \n`);
+  await updateDestinyDebt(leftovers);
+  console.log(`${colors.green("\n [💸 Destiny Debt] ")} page updated! \n`);
 }
 
-// Function to delete a block with retries
-async function deleteBlockWithRetries(blockId, maxRetries, progressBar) {
-  let retries = maxRetries;
-  let success = false;
-
-  while (!success && retries > 0) {
-    try {
-      await notion.blocks.delete({ block_id: blockId });
-      success = true;
-      progressBar.increment(1);
-    } catch (error) {
-      if (error.code === "conflict_error") {
-        retries--;
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        return deleteBlockWithRetries(blockId, retries, progressBar);
-      } else {
-        throw error;
-      }
-    }
-  }
-  progressBar.stop();
+async function getChecklist(today) {
+  console.log("Getting template checklist...");
+  const blocks = await fetchBlock(process.env.CHECKLISTS_PAGE_ID);
+  const checklists = await Promise.all(
+    blocks.results.map(async (c) => fetchBlock(c.id))
+  );
+  console.log(`Selected template for: ${colors.cyan(DAYS[today])} \n`);
+  return parseChecklist(checklists[today].results);
 }
 
 async function getClassifications() {
@@ -83,10 +44,10 @@ async function getClassifications() {
     .filter((r) => r.paragraph && r.paragraph.rich_text.length > 0)
     .map((r) => r.paragraph.rich_text[0].text.content);
   fetchedSubjects.forEach((f) => {
-    if (Object.keys(subjects).includes(f)) {
+    if (Object.keys(SUBJECTS).includes(f)) {
       activeSubject = f;
     } else {
-      subjects[activeSubject].items.push(f);
+      SUBJECTS[activeSubject].items.push(f);
     }
   });
 }
@@ -105,7 +66,7 @@ async function updateDestinyDebt(debt) {
     },
     cliProgress.Presets.shades_classic
   );
-  progressBar.start(Object.keys(subjects).length, 0);
+  progressBar.start(Object.keys(SUBJECTS).length, 0);
   const blocks = await fetchBlock(process.env.DESTINY_DEBT_PAGE_ID);
   const fetchedSubjects = blocks.results
     .filter((r) => r.paragraph && r.paragraph.rich_text.length > 0)
@@ -118,15 +79,15 @@ async function updateDestinyDebt(debt) {
     });
 
   fetchedSubjects.forEach((f) => {
-    if (Object.keys(subjects).includes(f.text)) {
-      subjects[f.text].id = f.id;
+    if (Object.keys(SUBJECTS).includes(f.text)) {
+      SUBJECTS[f.text].id = f.id;
     }
   });
 
   let activeSubject = undefined;
 
   for (const f of fetchedSubjects) {
-    console.log(`| ${subjects[f.text].color} ${f.text} \x1b[0m\n`);
+    console.log(`| ${SUBJECTS[f.text].color} ${f.text} \x1b[0m\n`);
     progressBar.increment(1);
     if (f.has_children) {
       activeSubject = f.text;
@@ -157,25 +118,15 @@ async function updateDestinyDebt(debt) {
               const finalText = `${(result + toAdd).toString()} ${
                 debt[i].text.split(" ")[1]
               } ${debt[i].text.split(" ")[2]}`;
-              await updatePageWithRetry(c.id, {
-                rich_text: [
-                  {
-                    text: {
-                      content: finalText,
-                    },
-                  },
-                ],
-              });
+              await updateBlockWithRetry(c.id, textObject(finalText));
             }
           }
         })
       );
-
-      // Handle debt items to add new entries
       for (let i = 0; i < debt.length; i++) {
         if (
           activeSubject &&
-          subjects[activeSubject].items.includes(debt[i].text.split(" ")[2]) &&
+          SUBJECTS[activeSubject].items.includes(debt[i].text.split(" ")[2]) &&
           !debt[i].checked
         ) {
           debt[i].checked = true;
@@ -190,69 +141,15 @@ async function updateDestinyDebt(debt) {
               ],
             },
           };
-          await notion.blocks.children.append({
-            block_id: subjects[activeSubject].id,
-            children: [todo],
-          });
+          await appendBlock(SUBJECTS[activeSubject].id, [todo]);
         }
       }
-    } else {
-      console.log(`${f.text} has no children, moving on...\n`);
     }
   }
-  progressBar.update(Object.keys(subjects).length);
+  progressBar.update(Object.keys(SUBJECTS).length);
   progressBar.stop();
+  await new Promise((resolve) => setTimeout(resolve, 2000));
   console.clear();
-  console.log(`${colors.green("\n [💸 Destiny Debt] ")} page updated! \n`);
-}
-
-async function fetchBlock(blockId) {
-  return await notion.blocks.children.list({
-    block_id: blockId,
-    page_size: 50,
-  });
-}
-
-function parseChecklist(checklist) {
-  return checklist.map((r) => {
-    return {
-      text: r.to_do.rich_text[0].plain_text,
-      checked: r.to_do.checked,
-    };
-  });
-}
-
-async function getChecklist(today) {
-  // const isWeekday = today > 0 && today < 6;
-  const isSaturday = today === 6;
-  const isSunday = today === 0;
-  console.log("Getting template checklist...");
-  const blocks = await fetchBlock(process.env.CHECKLISTS_PAGE_ID);
-
-  const checklists = await Promise.all(
-    blocks.results.map(async (c) => fetchBlock(c.id))
-  );
-  let index = 0;
-
-  if (isSaturday) {
-    index = 1;
-  } else if (isSunday) {
-    index = 2;
-  }
-
-  console.log(
-    `Selected template for: ${colors.cyan(
-      ["Weekday", "Saturday", "Sunday"][index]
-    )} \n`
-  );
-
-  const parsedChecklist = parseChecklist(checklists[index].results);
-
-  return parsedChecklist;
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function removeTodos(blockIds) {
@@ -270,24 +167,24 @@ async function removeTodos(blockIds) {
   );
   progressBar.start(blockIds.length, 0);
 
-  // Delete blocks in parallel
   await Promise.all(
-    blockIds.map((blockId) => deleteBlockWithRetries(blockId, 3, progressBar))
+    blockIds.map(async (blockId) => {
+      await deleteBlockWithRetries(blockId);
+      progressBar.increment(1);
+    })
   );
+  progressBar.stop();
 }
 
-async function getUncheckedTodos() {
+async function removeUncheckedTodos() {
   const blocks = await fetchBlock(process.env.TODAY_PAGE_ID);
   const checklistBlock = await fetchBlock(blocks.results[2].id);
-
   const filteredBlocks = checklistBlock.results.filter(
     (b) => b.type === "to_do"
   );
-
   const parsedChecklist = parseChecklist(filteredBlocks).filter(
-    (c) => !c.checked
+    (c) => !c.checked && /^[0-9]/.test(c.text)
   );
-
   await removeTodos(filteredBlocks.map((b) => b.id));
   return parsedChecklist;
 }
@@ -295,39 +192,6 @@ async function getUncheckedTodos() {
 async function refillTodos(checklist) {
   const blocks = await fetchBlock(process.env.TODAY_PAGE_ID);
   const attachBlock = blocks.results[blocks.results.length - 1];
-
-  const todos = checklist.map((c) => {
-    return {
-      to_do: {
-        rich_text: [
-          {
-            text: {
-              content: c.text,
-            },
-          },
-        ],
-      },
-    };
-  });
-
-  await notion.blocks.children.append({
-    block_id: attachBlock.id,
-    children: todos,
-  });
-
-  console.log(`\n ${colors.yellow(`[🎁 Today]`)} page updated! \n`);
-}
-
-function startsWithNumber(str) {
-  return /^[0-9]/.test(str);
-}
-
-async function rechargeDestiny(day = undefined) {
-  const checklist = await getChecklist(
-    day ? days.indexOf(day) : new Date().getDay()
-  );
-  const unchecked = await getUncheckedTodos();
-  const leftovers = unchecked.filter((u) => startsWithNumber(u.text));
-  await refillTodos(checklist);
-  await updateDestinyDebt(leftovers);
+  const todos = checklist.map((c) => toDoObject(c.text));
+  await appendBlock(attachBlock.id, todos);
 }
