@@ -77,16 +77,21 @@ node index.js Monday
 ## 📂 Project Structure
 
 ```
-├── helpers/                   # Helper functions and constants
-│   ├── constants.js            # Stores DAYS and SUBJECTS used in your task list
-│   ├── notion.js               # Notion API interaction functions (fetch, update, delete)
-│   └── helpers.js              # Utility functions for handling tasks (e.g., parseChecklist)
+| ultra-notion/
+|
+├── src/                        # Main source folder
+│   ├── helpers/                # Helper functions and constants
+│   │   ├── constants.js        # Stores DAYS and SUBJECTS used in your task list
+│   │   ├── helpers.js          # Utility functions for handling tasks (e.g., parseChecklist)
+│   │   └── notion.js           # Notion API interaction functions (fetch, update, delete)
+│   ├── main.js                 # Main entry point of the script
 │
 ├── .env                        # Environment variables (Notion API key and page IDs)
-├── main.js                    # Main entry point of the script
-├── README.md                   # This file
-├── package.json                # Node.js dependencies and scripts
-└── node_modules/               # Installed dependencies
+├── node_modules/               # Installed dependencies
+├── .gitignore                  # Files to ignore in version control (e.g., node_modules, .env)
+├── package-lock.json           # Locked versions of dependencies
+├── package.json                # Project metadata and dependencies
+└── README.md                   # Project documentation
 ```
 
 ## 📝 Script Overview
