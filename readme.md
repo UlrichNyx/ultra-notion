@@ -30,7 +30,7 @@ Before using this script, ensure you have the following:
 1. Clone the repository:
 
 ```js
-git clone https://github.com/your-username/destiny-recharge.git
+git clone https://github.com/UlrichNyx/ultra-notion.git
 cd destiny-recharge
 ```
 
@@ -178,4 +178,4 @@ This project is free for use!
 
 Enjoy :3
 
-- UlrichNyx
+~ UlrichNyx
