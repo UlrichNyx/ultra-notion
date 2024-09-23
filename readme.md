@@ -31,7 +31,7 @@ Before using this script, ensure you have the following:
 
 ```js
 git clone https://github.com/UlrichNyx/ultra-notion.git
-cd destiny-recharge
+cd ultra-notion
 ```
 
 2. Install the necessary dependencies:
