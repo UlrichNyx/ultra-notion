@@ -1,4 +1,4 @@
-# 📝 Destiny Recharge Script
+# 📝 Ultra Notion (Destiny Recharge Script)
 
 A script to automate task management with Notion, refilling daily to-do lists, updating task statuses, and cleaning up unfinished tasks. This script is designed to enhance productivity by integrating seamlessly with Notion's blocks and templates.
 
@@ -84,7 +84,7 @@ node index.js Monday
 │   │   ├── constants.js        # Stores DAYS and SUBJECTS used in your task list
 │   │   ├── helpers.js          # Utility functions for handling tasks (e.g., parseChecklist)
 │   │   └── notion.js           # Notion API interaction functions (fetch, update, delete)
-│   ├── main.js                 # Main entry point of the script
+│   ├── index.js                 # Main entry point of the script
 │
 ├── .env                        # Environment variables (Notion API key and page IDs)
 ├── node_modules/               # Installed dependencies
@@ -106,40 +106,37 @@ node index.js Monday
 ## 🎨 Example Output
 
 ```
-
 Getting template checklist...
 Selected template for: Monday
 
 Removing Todos | ████████████████████████████████████████ | 100% || 31/31 items
 
-
-
-
  [🎁 Today] page updated!
 
-Updating Destiny | ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ | 0% || 0/11 items |  Destiny is All
+Updating Destiny | ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ | 0% || 0/10 items |  Elsecaller
 
-Updating Destiny | ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ | 9% || 1/11 items |  A Vain Death
+Updating Destiny | ████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ | 10% || 1/10 items |  A Vain Death
 
-Updating Destiny | ███████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ | 18% || 2/11 items |  Premonition of War
+Updating Destiny | ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░ | 20% || 2/10 items |  Premonition of War
 
-|  Mind and Body
+Updating Destiny | ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░ | 30% || 3/10 items |  Mind and Body
 
-Updating Destiny | ███████████████░░░░░░░░░░░░░░░░░░░░░░░░░ | 36% || 4/11 items |  Inner Peace
+Updating Destiny | ████████████████░░░░░░░░░░░░░░░░░░░░░░░░ | 40% || 4/10 items |  Inner Peace
 
-Updating Destiny | ██████████████████░░░░░░░░░░░░░░░░░░░░░░ | 45% || 5/11 items |  Mastery of Games
+Updating Destiny | ████████████████████░░░░░░░░░░░░░░░░░░░░ | 50% || 5/10 items |  Mastery of Games
 
-Updating Destiny | ██████████████████████░░░░░░░░░░░░░░░░░░ | 54% || 6/11 items |  Expressions of Self
+Updating Destiny | ████████████████████████░░░░░░░░░░░░░░░░ | 60% || 6/10 items |  Expressions of Self
 
-Updating Destiny | █████████████████████████░░░░░░░░░░░░░░░ | 63% || 7/11 items |  Ways of the World
+Updating Destiny | ████████████████████████████░░░░░░░░░░░░ | 70% || 7/10 items |  Ways of the World
 
-Updating Destiny | █████████████████████████████░░░░░░░░░░░ | 72% || 8/11 items |  Izzet Scholarship
+Updating Destiny | ████████████████████████████████░░░░░░░░ | 80% || 8/10 items |  Izzet Scholarship
 
-Updating Destiny | █████████████████████████████████░░░░░░░ | 81% || 9/11 items |  Unite Them
+Updating Destiny | ████████████████████████████████████░░░░ | 90% || 9/10 items |  Unite Them
 
-Updating Destiny | ████████████████████████████████████░░░░ | 90% || 10/11 items |  Elsecaller
+Updating Destiny | ████████████████████████████████████████ | 100% || 10/10 items
 
-Updating Destiny | ████████████████████████████████████████ | 100% || 11/11 items
+ [💸 Destiny Debt]  page updated!
+
 ```
 
 ## 🛡️ Error Handling
@@ -157,19 +154,19 @@ This is because when updating Notion sequentially there is a very common conflic
 
 Here are some planned enhancements to improve the functionality and user experience of this project:
 
-📅 Automated Weekly Recaps:
+### 📅 Automated Weekly Recaps:
 
 Automatically generate a weekly summary of tasks completed and remaining, and send it via email or update a designated Notion page. This will provide a snapshot of productivity and areas needing attention.
 
-⚡ Dynamic Task Prioritization:
+### ⚡ Dynamic Task Prioritization:
 
 Implement a system that automatically reorders tasks based on urgency, deadlines, or user-defined priorities. This feature would help focus on the most critical tasks first.
 
-🔗 Integration with Other Tools:
+### 🔗 Integration with Other Tools:
 
 Expand the script's capabilities by integrating with other project management or productivity tools (e.g., Slack, Google Calendar). This could enhance task tracking and notifications across platforms.
 
-📊 Visual Dashboard for Task Progress:
+### 📊 Visual Dashboard for Task Progress:
 
 Introduce a visual dashboard (possibly using charts or graphs) to track progress over time, making it easier to see trends and adjust workload accordingly.
 

@@ -83,7 +83,7 @@ async function getChecklist(today) {
  */
 async function getClassifications() {
   const response = await fetchBlock(process.env.CLASSIFICATIONS_PAGE_ID);
-  let activeSubject = "Destiny is All";
+  let activeSubject = "Elsecaller";
   const fetchedSubjects = response.results
     .filter((r) => r.paragraph && r.paragraph.rich_text.length > 0)
     .map((r) => r.paragraph.rich_text[0].text.content);
@@ -224,6 +224,26 @@ async function removeUncheckedTodos() {
   return parsedChecklist;
 }
 
+/**
+ * Refills the todo list on today's Notion page with new tasks from a checklist.
+ *
+ * @param {Object[]} checklist - An array of checklist objects where each item contains a `text` property.
+ *   - `checklist[]`:
+ *     - `text` {string} - The text of the todo item to be added to the Notion page.
+ *
+ * @returns {Promise<void>} - A promise that resolves once the todos have been appended to the Notion page.
+ *
+ * This function performs the following steps:
+ * 1. Fetches the blocks from the Notion page specified by the `TODAY_PAGE_ID` environment variable.
+ * 2. Identifies the block at the end of the page (the last block), which is where new todos will be appended.
+ * 3. Converts the checklist items into Notion-compatible todo blocks using `toDoObject`.
+ * 4. Appends the newly created todo blocks to the identified block on the Notion page.
+ *
+ * Example Usage:
+ *
+ * const checklist = [{ text: "Buy groceries" }, { text: "Clean the house" }];
+ * await refillTodos(checklist);
+ */
 async function refillTodos(checklist) {
   const blocks = await fetchBlock(process.env.TODAY_PAGE_ID);
   const attachBlock = blocks.results[blocks.results.length - 1];
