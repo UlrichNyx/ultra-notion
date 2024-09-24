@@ -162,6 +162,7 @@ async function updateDestinyDebt(debt) {
               !debt[i].checked
             ) {
               debt[i].checked = true;
+              // Todos follow the pattern of "<Number> <Units> <Text>"
               const result = parseInt(c.text.split(" ")[0]);
               const toAdd = parseInt(debt[i].text.split(" ")[0]);
               const finalText = `${(result + toAdd).toString()} ${
@@ -213,6 +214,7 @@ async function updateDestinyDebt(debt) {
  */
 async function removeUncheckedTodos() {
   const blocks = await fetchBlock(process.env.TODAY_PAGE_ID);
+  // Grab the third block's children to get the todo list
   const checklistBlock = await fetchBlock(blocks.results[2].id);
   const filteredBlocks = checklistBlock.results.filter(
     (b) => b.type === "to_do"

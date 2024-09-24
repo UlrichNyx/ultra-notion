@@ -148,7 +148,11 @@ This is because when updating Notion sequentially there is a very common conflic
 
 - Customize the task template and structure in Notion as per your workflow.
 - Use this script daily to maintain a clean and up-to-date todo list.
-- Consider adding more automated workflows using the Notion API
+- Your TODAY page needs to have the todo list as a child appended to the 3rd block
+- Your classifications need to be in a list of titles followed by the items that belong to that title with the same indentation
+- Your check lists need to be expandable lists for each day Monday-Sunday and must be the first 7 children of that page
+- In your Destiny Debt page, you must section off each subject and have the todos that belong to that subject be a child of the subject's block
+- Your todos must follow the format: -Number- -Unit- -Text- e.g. 1 hour(s) Reading
 
 ## 🔮 Future Improvements
 
