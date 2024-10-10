@@ -2,6 +2,22 @@
 
 A script to automate task management with Notion, refilling daily to-do lists, updating task statuses, and cleaning up unfinished tasks. This script is designed to enhance productivity by integrating seamlessly with Notion's blocks and templates.
 
+## 📚 Table of Contents
+
+- [🚀 Features](#-features)
+- [📋 Prerequisites](#-prerequisites)
+- [⚙️ Installation](#️-installation)
+- [🛠️ Usage](#️-usage)
+- [📂 Project Structure](#-project-structure)
+- [📝 Script Overview](#-script-overview)
+  - [Main Functions](#main-functions)
+- [🎨 Example Output](#-example-output)
+- [🛡️ Error Handling](#️-error-handling)
+- [💡 Tips](#-tips)
+- [🔮 Future Improvements](#-future-improvements)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
+
 ## 🚀 Features
 
 - Automatically update daily tasks on your Notion page.
